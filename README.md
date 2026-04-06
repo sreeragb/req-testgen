@@ -144,8 +144,6 @@ req-testgen/
 ├── examples/
 │   ├── requirements.txt    Sample requirements to test with
 │   └── sample_output.json  Example of a full pipeline run
-│
-└── demo.py                 Offline demo — no API key needed
 ```
 
 ---
