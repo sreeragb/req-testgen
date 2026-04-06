@@ -26,7 +26,7 @@ Works for any software domain: embedded systems, enterprise software, Automotive
 ## Quick start
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/req-testgen.git
+git clone https://github.com/sreeragb/req-testgen
 cd req-testgen
 pip install -r requirements.txt
 export ANTHROPIC_API_KEY=sk-ant-... #Api key is not required when claude code is used. If asked, just ignore. 
