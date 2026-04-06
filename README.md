@@ -1,2 +1,285 @@
 # req-testgen
-Automotive software test case generator. Use when user provides a requirements document (PDF, DOCX, XLSX, CSV, TXT). It generates the equivalence classes, boundary values, Functional test cases for automotive software
+
+Give it a requirements document or a single requirement string.
+Get back structured, traceable test cases — ready to import into DOORS or Codebeamer.
+---
+
+## What it does
+
+```
+Input:  "The login form shall reject passwords shorter than 8 characters."
+
+Output:
+  TC_001  Valid password (8+ chars)           → positive, EP
+  TC_002  Password at lower boundary (8)      → positive, BVA
+  TC_003  Password below boundary (7 chars)   → negative, BVA
+  TC_004  Empty password                      → negative, EP
+  TC_005  Maximum length password             → positive, BVA
+
+  Evaluation: 4.7/5.0 | Coverage █████ | Traceability █████
+```
+
+Works for any software domain: embedded systems, enterprise software, Automotive.
+
+---
+
+## Quick start
+
+```bash
+git clone https://github.com/YOUR_USERNAME/req-testgen.git
+cd req-testgen
+pip install -r requirements.txt
+export ANTHROPIC_API_KEY=sk-ant-... #Api key is not required when claude code is used. If asked, just ignore. 
+
+# From a requirements document
+python src/read_document.py requirements.pdf --preview
+python src/pipeline.py --file requirements_extracted.txt
+
+# From a single requirement
+python src/pipeline.py --req "The API shall return a response within 200 ms"
+
+# Export for your tool
+python src/pipeline.py --file reqs.txt --format doors       # IBM DOORS
+python src/pipeline.py --file reqs.txt --format codebeamer  # Codebeamer
+```
+
+No API key? Run the offline demo first:
+```bash
+python demo.py
+```
+
+---
+
+## Supported input formats
+
+| Format | Notes |
+|---|---|
+| `.txt` | One requirement per line, `#` for comments |
+| `.md` | Extracts non-heading lines |
+| `.csv` | Auto-detects requirement column, or use `--column "Name"` |
+| `.pdf` | Requires `pip install pdfplumber` |
+| `.docx` | Requires `pip install python-docx` |
+
+---
+
+## Test techniques covered
+
+| Technique | What gets generated |
+|---|---|
+| **Equivalence Partitioning (EP)** | Valid and invalid classes per parameter, with representative values |
+| **Boundary Value Analysis (BVA)** | min, max, min±1, max±1 for every numeric/range parameter |
+| **Functional** | Positive and negative test cases with preconditions and expected results |
+| **Parameter testing** | Each parameter exercised independently across its range |
+
+All test cases include traceability back to the source requirement.
+
+---
+
+## Pipeline
+
+Five prompt chain steps, each returning structured JSON:
+
+```
+Requirement text
+    │
+    ▼  1. parse_requirement        → type, subject, parameters, constraints, ambiguities
+    ▼  2. partition_equivalence    → valid / invalid classes per parameter
+    ▼  3. analyze_boundary_values  → min / max / ±1 per numeric parameter
+    ▼  4. generate_test_cases      → full traceable test cases
+    ▼  5. evaluate_output          → quality scores + gaps + suggestions
+```
+
+See `src/prompt_steps.py` for all prompt templates.
+
+---
+
+## Output formats
+
+**Markdown** (default) — renders on GitHub, good for PR review and human inspection.
+
+**DOORS CSV** — imports directly into IBM Rational DOORS module.
+
+**Codebeamer JSON** — compatible with Codebeamer REST API import.
+
+---
+
+## Evaluation
+
+The pipeline scores its own output on five dimensions (1–5):
+
+| Dimension | What it checks |
+|---|---|
+| Coverage | Every EP class covered by ≥1 test case |
+| Boundary correctness | Off-by-one values match parameter data type |
+| Test completeness | All fields filled with meaningful content |
+| Traceability | Each test linked to a specific requirement clause |
+| Export readiness | Output importable without manual editing |
+
+Score ≥ 4.0 is considered export-ready. Gaps and improvement suggestions are included.
+
+---
+
+## Project structure
+
+```
+req-testgen/
+├── src/
+│   ├── pipeline.py         Main entry point — CLI and orchestration
+│   ├── prompt_steps.py     Five prompt chain functions
+│   ├── llm_client.py       Provider abstraction (Anthropic / OpenAI)
+│   ├── format_export.py    DOORS CSV, Codebeamer JSON, Markdown export
+│   └── read_document.py    Document reader (PDF, DOCX, CSV, TXT, MD)
+│
+├── skill/req-testgen/
+│   ├── SKILL.md            Claude Code skill definition
+│   └── references/
+│       ├── prompt_design.md     Prompt templates and design notes
+│       └── export_formats.md    DOORS and Codebeamer schemas
+│
+├── tests/
+│   ├── conftest.py         Shared fixtures
+│   └── test_pipeline.py    Unit and integration tests
+│
+├── examples/
+│   ├── requirements.txt    Sample requirements to test with
+│   └── sample_output.json  Example of a full pipeline run
+│
+└── demo.py                 Offline demo — no API key needed
+```
+
+---
+
+## Claude Code skill
+
+The `skill/req-testgen/` directory is a Claude Code skill.
+Copy it into your Claude Code skills folder and Claude will use it automatically
+when you say things like "generate test cases from this document".
+
+---
+
+## Running tests
+
+```bash
+# Unit tests — no API key needed
+pytest
+
+# Integration tests — requires ANTHROPIC_API_KEY
+pytest -m slow
+```
+
+---
+
+## Switching to OpenAI
+
+```bash
+export OPENAI_API_KEY=sk-...
+python src/pipeline.py --req "..." --provider openai
+```
+
+---
+
+## Roadmap
+
+- [ ] Async batch processing for large requirement documents
+- [ ] Few-shot examples in BVA prompt to improve accuracy
+- [ ] Web UI (Gradio / Streamlit)
+- [ ] RAG-based consistency checking across related requirements
+
+---
+
+## Automotive skill — `auto-req-testgen`
+
+A separate, dedicated skill for automotive software projects.
+**ASPICE SWE.4 / ISO 26262 Part 6 compliant.** 15+ year automotive engineer perspective.
+
+### What makes it different from the generic skill
+
+| | Generic (`req-testgen`) | Automotive (`auto-req-testgen`) |
+|---|---|---|
+| Input handling | PDF, DOCX, CSV, TXT | + Codebeamer CR, Synergy CR, DOORS export, XLSX |
+| Requirement classification | Type only | Type + ASIL + ASPICE work product + safe state |
+| Equivalence classes | Valid / invalid | + Fault injection classes for ASIL B+ |
+| Boundary values | min/max/±1 | + Physical limits, resolution, MISRA-C notes |
+| Test case fields | 12 fields | 20 fields incl. test level, regression, pass criteria, DTC |
+| Evaluation | 5-dimension rubric | ASPICE SWE.4 BP2–BP6 + ISO 26262 Table 10/11 |
+| Export gate | None | Blocks export if score < 3.5 (< 4.0 for ASIL C/D) |
+| Safety | — | ASIL C/D flagged for mandatory human review |
+
+### Handling real-world input uncertainty
+
+Automotive requirements come from many sources, rarely in clean format:
+
+```bash
+# Codebeamer change request (most common)
+python src/normalize_requirements.py --input examples/sample_codebeamer_cr.txt \
+  --source codebeamer --preview
+
+# IBM Synergy CR
+python src/normalize_requirements.py --input examples/sample_synergy_cr.txt \
+  --source synergy
+
+# Architect note / email
+python src/normalize_requirements.py --input notes.txt --source architect_note
+
+# PDF spec from system team
+python src/read_document.py spec.pdf --strict --preview
+
+# Excel sheet from supplier
+python src/read_document.py requirements.xlsx --column "Requirement Text"
+```
+
+The normalizer extracts clean "shall" statements, flags non-requirements (questions,
+action items, design decisions), and surfaces any ASIL context found in the source.
+
+### Running the automotive pipeline
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+
+# Single requirement with ASIL hint
+python src/pipeline_auto.py \
+  --req "The BSW shall detect CAN bus loss within 10 ms and set DTC P0600" \
+  --asil C
+
+# From normalized file, export for DOORS
+python src/pipeline_auto.py \
+  --file normalized_requirements.txt \
+  --asil C \
+  --format doors
+
+# Export for Codebeamer
+python src/pipeline_auto.py --file normalized_requirements.txt --format codebeamer
+```
+
+### 6-step pipeline
+
+```
+Input (requirement text)
+    │
+    ▼  1. classify_requirement      → type, ASIL, ASPICE WP, safe state, ambiguities
+    ▼  2. partition_equivalence     → valid + invalid + fault injection classes
+    ▼  3. analyze_boundary_values   → BVA with resolution, physical limits, MISRA
+    ▼  4. generate_test_cases       → 20-field SWE.4 WP06 compliant test cases
+    ▼  5. assess_iso26262_coverage  → Table 10/11 gap analysis per ASIL level
+    ▼  6. evaluate_aspice_swe4      → BP2–BP6 scoring + export gate
+```
+
+### Safety gates
+
+- Score < 3.5 → export blocked, mandatory fixes listed
+- ASIL C/D → threshold raised to 4.0
+- ASIL C/D → always flagged for human review, regardless of score
+- Untestable requirement (no measurable criterion) → pipeline halted at Step 1
+- Blocker ambiguity (e.g. safe state not defined for ASIL C) → pipeline halted at Step 1
+
+### Skill structure
+
+```
+skill/auto-req-testgen/
+├── SKILL.md                       Claude Code skill definition + decision table
+└── references/
+    ├── aspice_swe4.md             BP1–BP6, WP06/WP13, common audit findings
+    ├── iso26262_part6.md          Table 10/11, ASIL definitions, safe state rules
+    ├── prompt_design.md           All 6 prompt templates with automotive expert rationale
+    └── export_formats.md          Extended DOORS CSV (18 cols) + Codebeamer JSON schema
+```
