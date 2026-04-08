@@ -1,4 +1,4 @@
-# req-testgen
+# Clause Skill for Automotive Test Case Generation for Unit, SW Testing
 
 Give it a requirements document or a single requirement string.
 Get back structured, traceable test cases — ready to import into DOORS or Codebeamer.
